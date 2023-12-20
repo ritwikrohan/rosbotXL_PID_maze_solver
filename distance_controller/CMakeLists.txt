@@ -12,6 +12,8 @@ find_package(tf2 REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 
+include_directories(include)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
@@ -23,5 +25,17 @@ if(BUILD_TESTING)
   set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+add_executable(distance_controller src/distance_controller.cpp src/pid.cpp)
+ament_target_dependencies(distance_controller rclcpp geometry_msgs nav_msgs tf2)
+
+install(TARGETS
+   distance_controller
+   DESTINATION lib/${PROJECT_NAME}
+ )
+
+install(DIRECTORY include/
+	DESTINATION include
+)
 
 ament_package()
