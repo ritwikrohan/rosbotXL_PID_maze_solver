@@ -1,5 +1,5 @@
-#ifndef PID_H
-#define PID_H
+#ifndef PID_HPP
+#define PID_HPP
 
 #include <vector>
 

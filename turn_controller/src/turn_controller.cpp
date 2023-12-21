@@ -11,24 +11,24 @@
 #include <memory>
 #include <thread>
 #include <vector>
-#include "distance_controller/pid.hpp"
+#include "pid.hpp"
 #include "rclcpp/utilities.hpp"
 #include <cmath>
 
 using namespace std::chrono_literals;
 
-class DistanceController : public rclcpp::Node
+class TurnController : public rclcpp::Node
 {
     public:
-        DistanceController() : Node("distance_controller_node")
+        TurnController() : Node("turn_controller_node")
         {
             odom_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
             rclcpp::SubscriptionOptions options_odom;
             options_odom.callback_group = odom_callback_group_;
-            odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odometry/filtered", 10, std::bind(&DistanceController::odomCallback, this, std::placeholders::_1), options_odom);
+            odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odometry/filtered", 10, std::bind(&TurnController::odomCallback, this, std::placeholders::_1), options_odom);
             rclcpp::sleep_for(std::chrono::seconds(1));
             timer_callback_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-            timer_ = this->create_wall_timer(50ms,std::bind(&DistanceController::controlLoop, this), timer_callback_group_);
+            timer_ = this->create_wall_timer(50ms,std::bind(&TurnController::controlLoop, this), timer_callback_group_);
             speed_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
 
         }
@@ -83,9 +83,15 @@ class DistanceController : public rclcpp::Node
 
         double calculate_error(double x, double y)
         {
-            double dx = std::pow((x - this->current_x),2);
-            double dy = std::pow((y - this->current_y),2);
-            double error = std::sqrt(dx+dy);
+            double dx = x - this->current_x;
+            double dy = y - this->current_y;
+            // RCLCPP_INFO(this->get_logger(),"dx: %f", dx);
+            // RCLCPP_INFO(this->get_logger(),"dy: %f", dy);
+            // RCLCPP_INFO(this->get_logger(),"current x: %f", this->current_x);
+            // RCLCPP_INFO(this->get_logger(),"current y: %f", this->current_y);
+            // RCLCPP_INFO(this->get_logger(),"x: %f", x);
+            // RCLCPP_INFO(this->get_logger(),"y: %f", y);
+            double error = atan2(dy,dx);
             return error;
         }
 
@@ -115,7 +121,6 @@ class DistanceController : public rclcpp::Node
             }
         }
 
-3 7 13
         void moveRobot(const geometry_msgs::msg::Point32& goal)
         {
             PID pid_distance = PID();
@@ -124,18 +129,20 @@ class DistanceController : public rclcpp::Node
             double goal_x = goal.x;
             double goal_y = goal.y;
             bool goal_reached = false;
+            double goal_print = calculate_error(goal_x, goal_y);
             rclcpp::Rate loop_rate(15);
             while (!goal_reached && rclcpp::ok())
             {
-                double goal_error = calculate_error(goal_x, goal_y);
+                double goal_error = calculate_error(goal_x, goal_y)-this->current_yaw;
                 RCLCPP_DEBUG(this->get_logger(),"Goal Error: %f", goal_error);
-                if (std::abs(goal_error) > 0.01)
+                RCLCPP_DEBUG(this->get_logger(),"Current Yaw: %f", this->current_yaw);
+                if (std::abs(goal_error) > 0.001)
                 {
                     pid_distance.UpdateError(goal_error);
                     double speed_x = ((pid_distance.Kp * pid_distance.p_error) + (pid_distance.Kd * pid_distance.d_error) + (pid_distance.Ki * pid_distance.i_error));
                     speed_x = (std::abs(speed_x) > MAX_SPEED) ? MAX_SPEED * std::abs(speed_x) / speed_x : speed_x;
-                    vel_msg.linear.x = speed_x;
-                    vel_msg.angular.z = 0.0;
+                    vel_msg.linear.x = 0.0;
+                    vel_msg.angular.z = speed_x;
                     speed_pub_->publish(vel_msg);
                 }
                 else
@@ -153,8 +160,8 @@ class DistanceController : public rclcpp::Node
                         rclcpp::shutdown();
                     }
                     rclcpp::sleep_for(std::chrono::seconds(2));
-                    RCLCPP_INFO(this->get_logger(),"Target Waypoint: (%0.1f, %d)", round(this->current_x),0);
-                    RCLCPP_INFO(this->get_logger(),"Achieved Waypoint: (%f, %d)", this->current_x, 0);
+                    RCLCPP_INFO(this->get_logger(),"Target Yaw in degrees: %f", goal_print*180/M_PI);
+                    RCLCPP_INFO(this->get_logger(),"Achieved Yaw in degrees: %f", this->current_yaw*180/M_PI);
                     this->count++;
                 }
                 loop_rate.sleep();
@@ -168,7 +175,7 @@ class DistanceController : public rclcpp::Node
 int main(int argc, char **argv)
 {
     rclcpp::init(argc,argv);
-    auto node = std::make_shared<DistanceController>();
+    auto node = std::make_shared<TurnController>();
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     executor.spin();
