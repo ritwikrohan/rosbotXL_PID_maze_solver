@@ -42,10 +42,10 @@ class DistanceController : public rclcpp::Node
         double current_yaw = 0.0;
         double current_x = 0.0;
         double current_y = 0.0;
-        const double Kp = 0.9;
-        const double Ki = 0.0001;
-        const double Kd = 0.2;
-        const double MAX_SPEED = 0.5;
+        const double Kp = 1.5;
+        const double Ki = 0.007;
+        const double Kd = 0.9;
+        const double MAX_SPEED = 0.8;
         int count = 1;
 
         double normalizeAngle(double angle) {
