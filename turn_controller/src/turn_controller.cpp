@@ -134,6 +134,7 @@ class TurnController : public rclcpp::Node
             while (!goal_reached && rclcpp::ok())
             {
                 double goal_error = calculate_error(goal_x, goal_y)-this->current_yaw;
+                goal_error = normalizeAngle(goal_error);
                 RCLCPP_DEBUG(this->get_logger(),"Goal Error: %f", goal_error);
                 RCLCPP_DEBUG(this->get_logger(),"Current Yaw: %f", this->current_yaw);
                 if (std::abs(goal_error) > 0.001)
