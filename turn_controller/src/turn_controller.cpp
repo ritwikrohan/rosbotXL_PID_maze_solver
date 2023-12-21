@@ -44,7 +44,7 @@ class TurnController : public rclcpp::Node
         double current_y = 0.0;
         const double Kp = 0.9;
         const double Ki = 0.0001;
-        const double Kd = 0.2;
+        const double Kd = 0.7;
         const double MAX_SPEED = 0.5;
         int count = 1;
 
